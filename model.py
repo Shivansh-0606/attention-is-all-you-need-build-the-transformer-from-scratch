@@ -150,16 +150,16 @@ import torch
 def build_sinusoidal_positional_encoding(max_len, d_model):
     """Assemble the (max_len, d_model) sinusoidal positional encoding matrix."""
     # TODO: build the (max_len, d_model) sinusoidal positional encoding matrix
-    pem = torch.zeros(max_len ,d_model ,dtype = torch.float32)
+    position_encoded_matrix = torch.zeros(max_len ,d_model ,dtype = torch.float32)
 
     div_term = compute_positional_div_term(d_model)
     position_col = build_position_index_column(max_len)
 
-    pem = fill_even_indices_with_sin(pem, position_col, div_term)
+    position_encoded_matrix = fill_even_indices_with_sin(position_encoded_matrix, position_col, div_term)
 
-    pem = fill_odd_indices_with_cos(pem, position_col, div_term)
+    position_encoded_matrix = fill_odd_indices_with_cos(position_encoded_matrix, position_col, div_term)
 
-    return pem
+    return position_encoded_matrix
 
 # Step 13 - add_positional_encoding_to_embeddings (not yet solved)
 # TODO: implement

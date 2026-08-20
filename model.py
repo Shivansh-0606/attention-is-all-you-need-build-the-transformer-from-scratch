@@ -256,7 +256,7 @@ def scaled_dot_product_attention(query, key, value, mask=None):
 
     masked_scores = mask_attention_scores_with_neg_inf(scaled_scores, mask)
 
-    attention_weights =  softmax_attention_weights(scaled_scores)
+    attention_weights =  softmax_attention_weights(masked_scores)
 
     context_vector = apply_attention_weights_to_values(attention_weights, value)
 

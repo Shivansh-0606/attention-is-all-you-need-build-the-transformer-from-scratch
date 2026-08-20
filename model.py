@@ -230,9 +230,9 @@ import torch
 
 def softmax_attention_weights(masked_scores):
     # TODO: softmax over the last axis, zeroing rows that are entirely -inf
-    m = torch.nn.Softmax(dim = -1)
+    weights = torch.nn.Softmax(dim = -1)
 
-    return torch.where(masked_scores!=float('-inf'),m(masked_scores),0)
+    return torch.where(masked_scores!=float('-inf'),weights(masked_scores),0)
 
 # Step 21 - apply_attention_weights_to_values (not yet solved)
 # TODO: implement

@@ -222,7 +222,8 @@ import torch
 def mask_attention_scores_with_neg_inf(scores, mask):
     """Set entries of scores where mask is False to -inf."""
     # TODO: replace blocked positions of scores with negative infinity
-
+    if mask is None:
+        return scores
     return torch.where(mask , scores , float('-inf'))
 
 # Step 20 - softmax_attention_weights
@@ -242,8 +243,25 @@ def apply_attention_weights_to_values(attention_weights, value):
     # TODO: combine attention weights (..., Lq, Lk) with value (..., Lk, d_v)
     return attention_weights @ value
 
-# Step 22 - scaled_dot_product_attention (not yet solved)
-# TODO: implement
+# Step 22 - scaled_dot_product_attention
+import torch
+
+def scaled_dot_product_attention(query, key, value, mask=None):
+    """Run scaled dot-product attention; return (context, attention_weights)."""
+    # TODO: chain raw scores, scale by sqrt(d_k), optionally mask, softmax, then mix values
+    d_k = key.size(-1)
+
+    scores = compute_raw_attention_scores(query, key)
+
+    scaled_scores = scale_attention_scores(scores, d_k)
+
+    masked_scores = mask_attention_scores_with_neg_inf(scaled_scores, mask)
+
+    attention_weights =  softmax_attention_weights(scaled_scores)
+
+    context_vector = apply_attention_weights_to_values(attention_weights, value)
+
+    return (context_vector,attention_weights)
 
 # Step 23 - split_last_dim_into_heads (not yet solved)
 # TODO: implement

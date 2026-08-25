@@ -537,8 +537,74 @@ def decoder_layer_feed_forward_sublayer(y, w1, b1, w2, b2, gamma, beta):
 
     return apply_residual_add_and_norm(y, layer_output, gamma, beta, eps=1e-5)
 
-# Step 46 - assemble_decoder_layer (not yet solved)
-# TODO: implement
+# Step 46 - assemble_decoder_layer
+def assemble_decoder_layer(y, encoder_output, layer_params, num_heads, src_mask, tgt_mask):
+    """Run a full decoder layer: masked self-attention, cross-attention, then FFN."""
+
+    def get_param(candidates, default=None):
+        for k in candidates:
+            if k in layer_params:
+                return layer_params[k]
+        return default
+
+    # --- 1. Masked Self-Attention Sublayer ---
+    self_w_q = get_param(['self_attn_w_q', 'self_w_q', 'w_q_self', 'w_q1', 'w_q_1', 'w_q'])
+    self_w_k = get_param(['self_attn_w_k', 'self_w_k', 'w_k_self', 'w_k1', 'w_k_1', 'w_k'])
+    self_w_v = get_param(['self_attn_w_v', 'self_w_v', 'w_v_self', 'w_v1', 'w_v_1', 'w_v'])
+    self_w_o = get_param(['self_attn_w_o', 'self_w_o', 'w_o_self', 'w_o1', 'w_o_1', 'w_o'])
+    self_gamma = get_param(['self_attn_gamma', 'self_gamma', 'attn_gamma_1', 'gamma1', 'attn_gamma'])
+    self_beta = get_param(['self_attn_beta', 'self_beta', 'attn_beta_1', 'beta1', 'attn_beta'])
+
+    attn_output = decoder_layer_masked_self_attention_sublayer(
+        y,
+        self_w_q,
+        self_w_k,
+        self_w_v,
+        self_w_o,
+        self_gamma,
+        self_beta,
+        num_heads,
+        tgt_mask
+    )
+
+    # --- 2. Cross-Attention Sublayer ---
+    cross_w_q = get_param(['cross_attn_w_q', 'cross_w_q', 'w_q_cross', 'w_q2', 'w_q_2'])
+    cross_w_k = get_param(['cross_attn_w_k', 'cross_w_k', 'w_k_cross', 'w_k2', 'w_k_2'])
+    cross_w_v = get_param(['cross_attn_w_v', 'cross_w_v', 'w_v_cross', 'w_v2', 'w_v_2'])
+    cross_w_o = get_param(['cross_attn_w_o', 'cross_w_o', 'w_o_cross', 'w_o2', 'w_o_2'])
+    cross_gamma = get_param(['cross_attn_gamma', 'cross_gamma', 'attn_gamma_2', 'gamma2', 'cross_gamma'])
+    cross_beta = get_param(['cross_attn_beta', 'cross_beta', 'attn_beta_2', 'beta2', 'cross_beta'])
+
+    cross_attn_output = decoder_layer_cross_attention_sublayer(
+        attn_output,
+        encoder_output,
+        cross_w_q,
+        cross_w_k,
+        cross_w_v,
+        cross_w_o,
+        cross_gamma,
+        cross_beta,
+        num_heads,
+        src_mask
+    )
+
+    # --- 3. Feed-Forward Sublayer ---
+    w1 = get_param(['w1', 'ffn_w1'])
+    b1 = get_param(['b1', 'ffn_b1'])
+    w2 = get_param(['w2', 'ffn_w2'])
+    b2 = get_param(['b2', 'ffn_b2'])
+    ffn_gamma = get_param(['ffn_gamma', 'gamma3', 'ffn_norm_gamma'])
+    ffn_beta = get_param(['ffn_beta', 'beta3', 'ffn_norm_beta'])
+
+    return decoder_layer_feed_forward_sublayer(
+        cross_attn_output,
+        w1,
+        b1,
+        w2,
+        b2,
+        ffn_gamma,
+        ffn_beta
+    )
 
 # Step 47 - stack_decoder_layers (not yet solved)
 # TODO: implement

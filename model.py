@@ -640,8 +640,70 @@ def apply_log_softmax_over_vocab(logits):
 
     return s(logits)
 
-# Step 51 - run_transformer_forward (not yet solved)
-# TODO: implement
+# Step 51 - run_transformer_forward
+def run_transformer_forward(src_ids, tgt_ids, model_params, num_heads, pad_id):
+    # TODO: embed src+tgt, add PE, build masks, run encoder/decoder, project to log probs.
+    
+    # 1. Source and Target Embeddings
+    token_emb_weights = model_params['token_embedding']
+    d_model = token_emb_weights.shape[1]
+
+    src_emb = F.embedding(src_ids,token_emb_weights)
+    tgt_emb = F.embedding(tgt_ids , token_emb_weights)
+
+    src_emb = scale_embeddings_by_sqrt_d_model(src_emb, d_model)
+    tgt_emb = scale_embeddings_by_sqrt_d_model(tgt_emb, d_model)
+
+
+    # 2. Positional Encoding
+    max_len = max(src_ids.shape[1] ,tgt_ids.shape[1])
+    pe = build_sinusoidal_positional_encoding(max_len, d_model)
+
+    src_emb = add_positional_encoding_to_embeddings(src_emb, pe)
+    tgt_emb = add_positional_encoding_to_embeddings(tgt_emb, pe)
+
+    # 3. Build Masks
+
+    src_mask = build_padding_mask(src_ids, pad_id)
+
+    tgt_pad_mask = build_padding_mask(tgt_ids, pad_id)
+    tgt_cas_mask = build_causal_mask(tgt_ids.shape[1])
+
+    tgt_mask = combine_padding_and_causal_masks(tgt_pad_mask, tgt_cas_mask)
+
+    # 4. Encoder
+
+    encoder_out = stack_encoder_layers(
+    src_emb, 
+    model_params['encoder_layers'], 
+    num_heads, 
+    src_mask
+    )
+
+    # 5. Decoder
+
+    decoder_out = stack_decoder_layers(
+    tgt_emb, 
+    encoder_out, 
+    model_params['decoder_layers'], 
+    num_heads, 
+    src_mask, 
+    tgt_mask
+    )
+
+    # 6. Output Projection and Log softmax
+
+    output_projection_weights = model_params['output_projection']
+    output_projection_bias = model_params.get('output_projection_bias' , None)
+
+    logits = apply_final_output_projection(
+    decoder_out, 
+    output_projection_weights, 
+    output_projection_bias=None)
+
+    logits =  apply_log_softmax_over_vocab(logits)
+
+    return logits
 
 # Step 52 - init_encoder_layer_parameters (not yet solved)
 # TODO: implement

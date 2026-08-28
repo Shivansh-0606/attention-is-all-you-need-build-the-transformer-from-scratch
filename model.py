@@ -814,18 +814,28 @@ import torch
 
 def collect_model_parameters_into_list(encoder_layer_params, decoder_layer_params, embedding_params):
     # TODO: walk the encoder, decoder, and embedding dicts and return a flat deduped list of tensors
-    collect = []
+    params_list = []
+    seen = set()
 
-    for params in encoder_layer_params:
-        collect.append(params)
+    def add_params(tensor):
+        if isinstance(tensor , torch.Tensor) and tensor.requires_grad:
+            obj_id = id(tensor)
+            if obj_id not in seen:
+                seen.add(obj_id)
+                params_list.append(tensor)
+    
+    for layer in encoder_layer_params:
+        for val in layer.values():
+            add_params(val)
 
-    for params in decoder_layer_params:
-        collect.append(params)
+    for layer in decoder_layer_params:
+        for val in layer.values():
+            add_params(val)
 
-    for params in embedding_params:
-        collect.append(params)
+    for val in embedding_params.values():
+            add_params(val)
 
-    return collect
+    return params_list
 
 # Step 56 - shift_targets_right_with_start_token (not yet solved)
 # TODO: implement

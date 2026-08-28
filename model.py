@@ -740,8 +740,44 @@ def init_encoder_layer_parameters(d_model, num_heads, d_ff):
 
     return params
 
-# Step 53 - init_decoder_layer_parameters (not yet solved)
-# TODO: implement
+# Step 53 - init_decoder_layer_parameters
+import torch
+import math
+
+def init_decoder_layer_parameters(d_model, num_heads, d_ff):
+    # TODO: return a dict of requires_grad tensors for one decoder layer
+    
+    params = {}
+
+    def xavier_uniform(shape):
+        fan_in , fan_out = shape[0] ,shape[1]
+        bound = math.sqrt(6 / (fan_in + fan_out))
+        t = torch.empty(shape).uniform_(-bound , bound)
+        t.requires_grad_(True)
+        return t
+    
+    params['w_q_self'] = xavier_uniform((d_model ,d_model))
+    params['w_k_self'] = xavier_uniform((d_model ,d_model))
+    params['w_v_self'] = xavier_uniform((d_model ,d_model))
+    params['w_o_self'] = xavier_uniform((d_model ,d_model))
+    params['self_gamma'] = torch.ones(d_model , requires_grad = True)
+    params['self_beta'] = torch.zeros(d_model , requires_grad = True)
+
+    params['w_q_cross'] = xavier_uniform((d_model ,d_model))
+    params['w_k_cross'] = xavier_uniform((d_model ,d_model))
+    params['w_v_cross'] = xavier_uniform((d_model ,d_model))
+    params['w_o_cross'] = xavier_uniform((d_model ,d_model))
+    params['cross_gamma'] = torch.ones(d_model , requires_grad = True)
+    params['cross_beta'] = torch.zeros(d_model , requires_grad = True)
+
+    params['w1'] = xavier_uniform((d_model ,d_ff))
+    params['b1'] = torch.zeros(d_ff , requires_grad = True)
+    params['w2'] = xavier_uniform((d_ff ,d_model))
+    params['b2'] = torch.zeros(d_model , requires_grad = True)
+    params['ffn_gamma'] = torch.ones(d_model , requires_grad = True)
+    params['ffn_beta'] = torch.zeros(d_model , requires_grad = True)
+
+    return params
 
 # Step 54 - init_embedding_and_projection_parameters (not yet solved)
 # TODO: implement

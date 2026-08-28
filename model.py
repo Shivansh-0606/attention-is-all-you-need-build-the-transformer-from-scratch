@@ -781,6 +781,7 @@ def init_decoder_layer_parameters(d_model, num_heads, d_ff):
 
 # Step 54 - init_embedding_and_projection_parameters
 import torch
+import math
 
 def init_embedding_and_projection_parameters(vocab_size, d_model, tie_weights=True):
     """Allocate src/tgt embeddings and output projection (optionally tied)."""
@@ -808,8 +809,23 @@ def init_embedding_and_projection_parameters(vocab_size, d_model, tie_weights=Tr
         'output_projection':output_projection
     }
 
-# Step 55 - collect_model_parameters_into_list (not yet solved)
-# TODO: implement
+# Step 55 - collect_model_parameters_into_list
+import torch
+
+def collect_model_parameters_into_list(encoder_layer_params, decoder_layer_params, embedding_params):
+    # TODO: walk the encoder, decoder, and embedding dicts and return a flat deduped list of tensors
+    collect = []
+
+    for params in encoder_layer_params:
+        collect.append(params)
+
+    for params in decoder_layer_params:
+        collect.append(params)
+
+    for params in embedding_params:
+        collect.append(params)
+
+    return collect
 
 # Step 56 - shift_targets_right_with_start_token (not yet solved)
 # TODO: implement

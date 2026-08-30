@@ -966,7 +966,7 @@ def apply_adam_bias_correction(m_t, v_t, beta1, beta2, step):
 import torch
 
 def apply_adam_step_to_all_parameters(parameter_list, optimizer_state, learning_rate, beta1=0.9, beta2=0.98, epsilon=1e-9):
-    # Increment global optimizer step
+    
     optimizer_state['t'] += 1
     t = optimizer_state['t']
 
@@ -977,11 +977,11 @@ def apply_adam_step_to_all_parameters(parameter_list, optimizer_state, learning_
 
             grad = p.grad
 
-            # Update biased 1st and 2nd moment estimates using existing helpers
+            
             optimizer_state['m'][i] = update_adam_first_moment(optimizer_state['m'][i], grad, beta1)
             optimizer_state['v'][i] = update_adam_second_moment(optimizer_state['v'][i], grad, beta2)
 
-            # Compute bias-corrected moments
+            
             m_hat, v_hat = apply_adam_bias_correction(
                 optimizer_state['m'][i], 
                 optimizer_state['v'][i], 
@@ -990,7 +990,7 @@ def apply_adam_step_to_all_parameters(parameter_list, optimizer_state, learning_
                 t
             )
 
-            # In-place parameter update
+            
             p.addcdiv_(m_hat, torch.sqrt(v_hat) + epsilon, value=-learning_rate)
 
     return optimizer_state

@@ -962,8 +962,76 @@ def apply_adam_bias_correction(m_t, v_t, beta1, beta2, step):
 
     return (m_hat , v_hat)
 
-# Step 69 - apply_adam_step_to_all_parameters (not yet solved)
-# TODO: implement
+# Step 69 - apply_adam_step_to_all_parameters
+import torch
+
+def apply_adam_step_to_all_parameters(parameter_list, optimizer_state, learning_rate, beta1=0.9, beta2=0.98, epsilon=1e-9):
+    # Case 1: optimizer_state is a dict {'t': int, 'm': [...], 'v': [...]}
+    if isinstance(optimizer_state, dict):
+        optimizer_state['t'] += 1
+        t = optimizer_state['t']
+        m_list = optimizer_state['m']
+        v_list = optimizer_state['v']
+
+    # Case 2: optimizer_state is a list [t, m_list, v_list]
+    elif isinstance(optimizer_state, list) and len(optimizer_state) == 3 and isinstance(optimizer_state[0], int):
+        optimizer_state[0] += 1
+        t = optimizer_state[0]
+        m_list = optimizer_state[1]
+        v_list = optimizer_state[2]
+
+    # Case 3: optimizer_state is a list of per-parameter dicts [{'m': ..., 'v': ..., 't': ...}, ...]
+    elif isinstance(optimizer_state, list) and len(optimizer_state) > 0 and isinstance(optimizer_state[0], dict):
+        with torch.no_grad():
+            for i, p in enumerate(parameter_list):
+                if p.grad is None:
+                    continue
+                state = optimizer_state[i]
+                state['t'] = state.get('t', 0) + 1
+                t = state['t']
+                grad = p.grad
+                state['m'] = update_adam_first_moment(state['m'], grad, beta1)
+                state['v'] = update_adam_second_moment(state['v'], grad, beta2)
+                m_hat, v_hat = apply_adam_bias_correction(state['m'], state['v'], beta1, beta2, t)
+                p.addcdiv_(m_hat, torch.sqrt(v_hat) + epsilon, value=-learning_rate)
+        return optimizer_state
+
+    # Execute update for Case 1 and Case 2
+    with torch.no_grad():
+        for i, p in enumerate(parameter_list):
+            if p.grad is None:
+                continue
+
+            grad = p.grad
+
+            # Update first and second moments
+            m_new = update_adam_first_moment(m_list[i], grad, beta1)
+            v_new = update_adam_second_moment(v_list[i], grad, beta2)
+
+            # Store updated moments
+            if isinstance(m_list[i], torch.Tensor):
+                m_list[i].copy_(m_new)
+            else:
+                m_list[i] = m_new
+
+            if isinstance(v_list[i], torch.Tensor):
+                v_list[i].copy_(v_new)
+            else:
+                v_list[i] = v_new
+
+            # Bias correction
+            m_hat, v_hat = apply_adam_bias_correction(
+                m_list[i],
+                v_list[i],
+                beta1=beta1,
+                beta2=beta2,
+                step=t
+            )
+
+            # Parameter update in place
+            p.addcdiv_(m_hat, torch.sqrt(v_hat) + epsilon, value=-learning_rate)
+
+    return optimizer_state
 
 # Step 70 - zero_all_parameter_gradients (not yet solved)
 # TODO: implement

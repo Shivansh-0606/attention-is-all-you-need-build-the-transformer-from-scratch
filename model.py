@@ -777,24 +777,24 @@ def init_decoder_layer_parameters(d_model, num_heads, d_ff):
 # Step 54 - init_embedding_and_projection_parameters
 def init_embedding_and_projection_parameters(vocab_size, d_model, tie_weights=True):
     def xavier_uniform(shape):
-        fan_in , fan_out = shape[0] , shape[1]
+        fan_in, fan_out = shape[0], shape[1]
         bound = math.sqrt(6 / (fan_in + fan_out))
-        t = torch.empty(shape).uniform_(-bound , bound)
+        t = torch.empty(shape).uniform_(-bound, bound)
         t.requires_grad_(True)
         return t
 
-    src_embedding = xavier_uniform((vocab_size ,d_model))
-    tgt_embedding = xavier_uniform((vocab_size ,d_model))
-    
+    src_embedding = xavier_uniform((vocab_size, d_model))
+    tgt_embedding = xavier_uniform((vocab_size, d_model))
+
     if tie_weights:
-        output_projection = tgt_embedding
+        output_projection = tgt_embedding      
     else:
-        output_projection = xavier_uniform((vocab_size , d_model))
-    
+        output_projection = xavier_uniform((vocab_size, d_model))  
+
     return {
-        'src_embedding':src_embedding,
-        'tgt_embedding':tgt_embedding,
-        'output_projection':output_projection
+        'src_embedding': src_embedding,
+        'tgt_embedding': tgt_embedding,
+        'output_projection': output_projection,
     }
 
 # Step 55 - collect_model_parameters_into_list

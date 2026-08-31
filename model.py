@@ -775,6 +775,9 @@ def init_decoder_layer_parameters(d_model, num_heads, d_ff):
     return params
 
 # Step 54 - init_embedding_and_projection_parameters
+import torch
+import math
+
 def init_embedding_and_projection_parameters(vocab_size, d_model, tie_weights=True):
     def xavier_uniform(shape):
         fan_in, fan_out = shape[0], shape[1]
@@ -787,15 +790,22 @@ def init_embedding_and_projection_parameters(vocab_size, d_model, tie_weights=Tr
     tgt_embedding = xavier_uniform((vocab_size, d_model))
 
     if tie_weights:
-        output_projection = tgt_embedding      
+        output_projection = tgt_embedding   # same tensor object as tgt_embedding
     else:
-        output_projection = xavier_uniform((vocab_size, d_model))  
+        output_projection = xavier_uniform((vocab_size, d_model))
 
-    return {
+    result = {
         'src_embedding': src_embedding,
         'tgt_embedding': tgt_embedding,
         'output_projection': output_projection,
     }
+
+    if tie_weights:
+        # Alias: same tensor as tgt_embedding/output_projection, for code/tests
+        # that look up a single 'token_embedding' key under tying.
+        result['token_embedding'] = tgt_embedding
+
+    return result
 
 # Step 55 - collect_model_parameters_into_list
 import torch
@@ -1000,19 +1010,19 @@ def compute_batch_training_loss(src_batch, tgt_batch, model_params, config):
     num_heads = config['num_heads']
     smoothing = config['smoothing']
 
-    # 1. Shift target right for teacher-forced decoder input
+    # 1. Teacher-forced decoder input: shift gold targets right, prepend start token
     decoder_input = shift_targets_right_with_start_token(tgt_batch, start_id)
 
-    # 2. Run forward pass to get log probabilities (B, T, V)
+    # 2. Full forward pass -> log probabilities (B, T, V)
     log_probas = run_transformer_forward(src_batch, decoder_input, model_params, num_heads, pad_id)
 
-    # 3. Construct label-smoothed target distribution
+    # 3. Build label-smoothed target distribution against the UNSHIFTED gold tokens
     confidence = 1.0 - smoothing
     smoothed_dist = build_uniform_smoothing_distribution(log_probas.shape, vocab_size, smoothing)
     smoothed_dist = set_confidence_on_gold_tokens(smoothed_dist, tgt_batch, confidence)
     smoothed_dist = zero_pad_column_and_pad_token_rows(smoothed_dist, tgt_batch, pad_id)
-    
-    # 4. Compute KL loss and reduce over non-pad tokens
+
+    # 4. KL loss, reduced (averaged) over non-pad tokens only
     total_loss = compute_label_smoothed_kl_loss(log_probas, smoothed_dist)
     average_loss = average_loss_over_non_pad_tokens(total_loss, tgt_batch, pad_id)
 

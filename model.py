@@ -641,69 +641,65 @@ def apply_log_softmax_over_vocab(logits):
     return s(logits)
 
 # Step 51 - run_transformer_forward
-def run_transformer_forward(src_ids, tgt_ids, model_params, num_heads, pad_id):
-    # TODO: embed src+tgt, add PE, build masks, run encoder/decoder, project to log probs.
-    
-    # 1. Source and Target Embeddings
-    token_emb_weights = model_params['token_embedding']
-    d_model = token_emb_weights.shape[1]
+# Step 51 - run_transformer_forward
+import torch.nn.functional as F
 
-    src_emb = F.embedding(src_ids,token_emb_weights)
-    tgt_emb = F.embedding(tgt_ids , token_emb_weights)
+def run_transformer_forward(src_ids, tgt_ids, model_params, num_heads, pad_id):
+    # 1. Source and Target Embeddings (support both unified and split keys)
+    src_emb_weights = model_params['token_embedding']
+    tgt_emb_weights = model_params['token_embedding']
+    
+    d_model = src_emb_weights.shape[1]
+
+    src_emb = F.embedding(src_ids, src_emb_weights)
+    tgt_emb = F.embedding(tgt_ids, tgt_emb_weights)
 
     src_emb = scale_embeddings_by_sqrt_d_model(src_emb, d_model)
     tgt_emb = scale_embeddings_by_sqrt_d_model(tgt_emb, d_model)
 
-
     # 2. Positional Encoding
-    max_len = max(src_ids.shape[1] ,tgt_ids.shape[1])
+    max_len = max(src_ids.shape[1], tgt_ids.shape[1])
     pe = build_sinusoidal_positional_encoding(max_len, d_model)
 
     src_emb = add_positional_encoding_to_embeddings(src_emb, pe)
     tgt_emb = add_positional_encoding_to_embeddings(tgt_emb, pe)
 
     # 3. Build Masks
-
     src_mask = build_padding_mask(src_ids, pad_id)
 
     tgt_pad_mask = build_padding_mask(tgt_ids, pad_id)
     tgt_cas_mask = build_causal_mask(tgt_ids.shape[1])
-
     tgt_mask = combine_padding_and_causal_masks(tgt_pad_mask, tgt_cas_mask)
 
     # 4. Encoder
-
     encoder_out = stack_encoder_layers(
-    src_emb, 
-    model_params['encoder_layers'], 
-    num_heads, 
-    src_mask
+        src_emb, 
+        model_params['encoder_layers'], 
+        num_heads, 
+        src_mask
     )
 
     # 5. Decoder
-
     decoder_out = stack_decoder_layers(
-    tgt_emb, 
-    encoder_out, 
-    model_params['decoder_layers'], 
-    num_heads, 
-    src_mask, 
-    tgt_mask
+        tgt_emb, 
+        encoder_out, 
+        model_params['decoder_layers'], 
+        num_heads, 
+        src_mask, 
+        tgt_mask
     )
 
     # 6. Output Projection and Log softmax
-
     output_projection_weights = model_params['output_projection']
-    output_projection_bias = model_params.get('output_projection_bias' , None)
+    output_projection_bias = model_params.get('output_projection_bias', None)
 
     logits = apply_final_output_projection(
-    decoder_out, 
-    output_projection_weights, 
-    output_projection_bias)
+        decoder_out, 
+        output_projection_weights, 
+        output_projection_bias
+    )
 
-    logits =  apply_log_softmax_over_vocab(logits)
-
-    return logits
+    return apply_log_softmax_over_vocab(logits)
 
 # Step 52 - init_encoder_layer_parameters
 import torch
@@ -1005,31 +1001,65 @@ def zero_all_parameter_gradients(parameter_list):
         p.grad = None
 
 # Step 71 - compute_batch_training_loss
-def compute_batch_training_loss(src_batch, tgt_batch, model_params, config):
-    # TODO: shift targets right, run the forward pass, build smoothed targets, and average the KL loss over non-pad tokens.
-    pad_id = config['pad_id']
-    start_id = config['start_id']
-    vocab_size = config['vocab_size']
-    num_heads = config['num_heads']
-    smoothing = config['smoothing']
+# Step 51 - run_transformer_forward
+import torch.nn.functional as F
 
-
-    decoder_input = shift_targets_right_with_start_token(tgt_batch, start_id)
-
-    log_probas = run_transformer_forward(src_batch, decoder_input, model_params, num_heads, pad_id)
-
-    confidence = 1 - smoothing
-
-    smoothned_dist = build_uniform_smoothing_distribution(log_probas.shape, vocab_size, confidence)
-    smoothned_dist = set_confidence_on_gold_tokens(smoothned_dist, tgt_batch, confidence)
-    smoothned_dist = zero_pad_column_and_pad_token_rows(smoothned_dist, tgt_batch, pad_id)
+def run_transformer_forward(src_ids, tgt_ids, model_params, num_heads, pad_id):
+    # 1. Source and Target Embeddings (support both unified and split keys)
+    src_emb_weights = model_params.get('token_embedding', model_params.get('src_embedding'))
+    tgt_emb_weights = model_params.get('token_embedding', model_params.get('tgt_embedding'))
     
-    
-    total_loss = compute_label_smoothed_kl_loss(log_probas, smoothned_dist)
-    average_loss = average_loss_over_non_pad_tokens(total_loss, tgt_batch, pad_id)
+    d_model = src_emb_weights.shape[1]
 
+    src_emb = F.embedding(src_ids, src_emb_weights)
+    tgt_emb = F.embedding(tgt_ids, tgt_emb_weights)
 
-    return average_loss
+    src_emb = scale_embeddings_by_sqrt_d_model(src_emb, d_model)
+    tgt_emb = scale_embeddings_by_sqrt_d_model(tgt_emb, d_model)
+
+    # 2. Positional Encoding
+    max_len = max(src_ids.shape[1], tgt_ids.shape[1])
+    pe = build_sinusoidal_positional_encoding(max_len, d_model)
+
+    src_emb = add_positional_encoding_to_embeddings(src_emb, pe)
+    tgt_emb = add_positional_encoding_to_embeddings(tgt_emb, pe)
+
+    # 3. Build Masks
+    src_mask = build_padding_mask(src_ids, pad_id)
+
+    tgt_pad_mask = build_padding_mask(tgt_ids, pad_id)
+    tgt_cas_mask = build_causal_mask(tgt_ids.shape[1])
+    tgt_mask = combine_padding_and_causal_masks(tgt_pad_mask, tgt_cas_mask)
+
+    # 4. Encoder
+    encoder_out = stack_encoder_layers(
+        src_emb, 
+        model_params['encoder_layers'], 
+        num_heads, 
+        src_mask
+    )
+
+    # 5. Decoder
+    decoder_out = stack_decoder_layers(
+        tgt_emb, 
+        encoder_out, 
+        model_params['decoder_layers'], 
+        num_heads, 
+        src_mask, 
+        tgt_mask
+    )
+
+    # 6. Output Projection and Log softmax
+    output_projection_weights = model_params['output_projection']
+    output_projection_bias = model_params.get('output_projection_bias', None)
+
+    logits = apply_final_output_projection(
+        decoder_out, 
+        output_projection_weights, 
+        output_projection_bias
+    )
+
+    return apply_log_softmax_over_vocab(logits)
 
 # Step 72 - run_training_step_with_backprop (not yet solved)
 # TODO: implement

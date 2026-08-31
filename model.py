@@ -790,7 +790,7 @@ def init_embedding_and_projection_parameters(vocab_size, d_model, tie_weights=Tr
     tgt_embedding = xavier_uniform((vocab_size, d_model))
 
     if tie_weights:
-        output_projection = tgt_embedding   # same tensor object as tgt_embedding
+        output_projection = tgt_embedding   
     else:
         output_projection = xavier_uniform((vocab_size, d_model))
 
@@ -801,8 +801,6 @@ def init_embedding_and_projection_parameters(vocab_size, d_model, tie_weights=Tr
     }
 
     if tie_weights:
-        # Alias: same tensor as tgt_embedding/output_projection, for code/tests
-        # that look up a single 'token_embedding' key under tying.
         result['token_embedding'] = tgt_embedding
 
     return result

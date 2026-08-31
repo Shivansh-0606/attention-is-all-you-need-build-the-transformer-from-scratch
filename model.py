@@ -644,9 +644,9 @@ def apply_log_softmax_over_vocab(logits):
 import torch.nn.functional as F
 
 def run_transformer_forward(src_ids, tgt_ids, model_params, num_heads, pad_id):
-    # 1. Source and Target Embeddings (support both unified and split keys)
-    src_emb_weights = model_params['token_embedding']
-    tgt_emb_weights = model_params['token_embedding']
+    # Support both 'token_embedding' and 'src_embedding'/'tgt_embedding'
+    src_emb_weights = model_params.get('token_embedding', model_params.get('src_embedding'))
+    tgt_emb_weights = model_params.get('token_embedding', model_params.get('tgt_embedding'))
     
     d_model = src_emb_weights.shape[1]
 
@@ -688,7 +688,7 @@ def run_transformer_forward(src_ids, tgt_ids, model_params, num_heads, pad_id):
         tgt_mask
     )
 
-    # 6. Output Projection and Log softmax
+    # 6. Output Projection and Log Softmax
     output_projection_weights = model_params['output_projection']
     output_projection_bias = model_params.get('output_projection_bias', None)
 

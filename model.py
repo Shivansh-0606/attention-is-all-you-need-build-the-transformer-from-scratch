@@ -644,10 +644,10 @@ def apply_log_softmax_over_vocab(logits):
 import torch.nn.functional as F
 
 def run_transformer_forward(src_ids, tgt_ids, model_params, num_heads, pad_id):
-    # Support both 'token_embedding' and 'src_embedding'/'tgt_embedding'
-    src_emb_weights = model_params.get('token_embedding', model_params.get('src_embedding'))
-    tgt_emb_weights = model_params.get('token_embedding', model_params.get('tgt_embedding'))
     
+    src_emb_weights = model_params.get('src_embedding', model_params.get('token_embedding'))
+    tgt_emb_weights = model_params.get('tgt_embedding', model_params.get('token_embedding'))
+
     d_model = src_emb_weights.shape[1]
 
     src_emb = F.embedding(src_ids, src_emb_weights)
@@ -672,19 +672,19 @@ def run_transformer_forward(src_ids, tgt_ids, model_params, num_heads, pad_id):
 
     # 4. Encoder
     encoder_out = stack_encoder_layers(
-        src_emb, 
-        model_params['encoder_layers'], 
-        num_heads, 
+        src_emb,
+        model_params['encoder_layers'],
+        num_heads,
         src_mask
     )
 
     # 5. Decoder
     decoder_out = stack_decoder_layers(
-        tgt_emb, 
-        encoder_out, 
-        model_params['decoder_layers'], 
-        num_heads, 
-        src_mask, 
+        tgt_emb,
+        encoder_out,
+        model_params['decoder_layers'],
+        num_heads,
+        src_mask,
         tgt_mask
     )
 
@@ -693,8 +693,8 @@ def run_transformer_forward(src_ids, tgt_ids, model_params, num_heads, pad_id):
     output_projection_bias = model_params.get('output_projection_bias', None)
 
     logits = apply_final_output_projection(
-        decoder_out, 
-        output_projection_weights, 
+        decoder_out,
+        output_projection_weights,
         output_projection_bias
     )
 
@@ -779,6 +779,8 @@ import torch
 import math
 
 def init_embedding_and_projection_parameters(vocab_size, d_model, tie_weights=True):
+    """Allocate src/tgt embeddings and output projection (optionally tied)."""
+
     def xavier_uniform(shape):
         fan_in, fan_out = shape[0], shape[1]
         bound = math.sqrt(6 / (fan_in + fan_out))
@@ -790,7 +792,7 @@ def init_embedding_and_projection_parameters(vocab_size, d_model, tie_weights=Tr
     tgt_embedding = xavier_uniform((vocab_size, d_model))
 
     if tie_weights:
-        output_projection = tgt_embedding   
+        output_projection = tgt_embedding 
     else:
         output_projection = xavier_uniform((vocab_size, d_model))
 
@@ -801,6 +803,7 @@ def init_embedding_and_projection_parameters(vocab_size, d_model, tie_weights=Tr
     }
 
     if tie_weights:
+.
         result['token_embedding'] = tgt_embedding
 
     return result
@@ -1027,8 +1030,38 @@ def compute_batch_training_loss(src_batch, tgt_batch, model_params, config):
 
     return average_loss
 
-# Step 72 - run_training_step_with_backprop (not yet solved)
-# TODO: implement
+# Step 72 - run_training_step_with_backprop
+import torch
+
+def run_training_step_with_backprop(src_batch, tgt_batch, parameter_list, model_params, optimizer_state, step_number, config):
+    """Run one training iteration: zero grads, forward, backward, Noam LR, Adam step.
+
+    Returns the scalar loss value for the step as a Python float.
+    """
+    # TODO: zero grads, compute loss, backward, look up Noam LR, apply Adam step
+    zero_all_parameter_gradients(parameter_list)
+    
+    loss = compute_batch_training_loss(src_batch, tgt_batch, model_params, config)
+
+    loss.backward()
+
+    d_model = config['d_model']
+    warmup_steps = config['warmup_steps']
+
+    lr = compute_noam_learning_rate(step_number, d_model, warmup_steps)
+
+    adam_kwargs = {}
+    
+    if 'beta1' in config:
+        adam_kwargs['beta1'] = config['beta1']
+    if 'beta2' in config:
+        adam_kwargs['beta2'] = config['beta2']
+    if 'epsilon' in config:
+        adam_kwargs['epsilon'] = config['epsilon'] 
+
+    apply_adam_step_to_all_parameters(parameter_list, optimizer_state, lr,**adam_kwargs)
+
+    return float(loss.item())
 
 # Step 73 - run_training_loop_for_steps (not yet solved)
 # TODO: implement

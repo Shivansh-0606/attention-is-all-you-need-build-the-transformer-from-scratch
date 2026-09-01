@@ -1002,6 +1002,7 @@ def zero_all_parameter_gradients(parameter_list):
 
 # Step 71 - compute_batch_training_loss
 def compute_batch_training_loss(src_batch, tgt_batch, model_params, config):
+    
     pad_id = config['pad_id']
     start_id = config['start_id']
     vocab_size = config['vocab_size']

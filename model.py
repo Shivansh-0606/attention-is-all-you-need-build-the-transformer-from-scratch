@@ -1031,31 +1031,34 @@ def compute_batch_training_loss(src_batch, tgt_batch, model_params, config):
     return average_loss
 
 # Step 72 - run_training_step_with_backprop
-def compute_batch_training_loss(src_batch, tgt_batch, model_params, config):
-    
-    pad_id = config['pad_id']
-    start_id = config['start_id']
-    vocab_size = config['vocab_size']
-    num_heads = config['num_heads']
-    smoothing = config['smoothing']
+import torch
 
-    # 1. Teacher-forced decoder input: shift gold targets right, prepend start token
-    decoder_input = shift_targets_right_with_start_token(tgt_batch, start_id)
+def run_training_step_with_backprop(src_batch, tgt_batch, parameter_list, model_params,optimizer_state, step_number, config):
+    """Run one training iteration: zero grads, forward, backward, Noam LR, Adam step.
 
-    # 2. Full forward pass -> log probabilities (B, T, V)
-    log_probas = run_transformer_forward(src_batch, decoder_input, model_params, num_heads, pad_id)
+    Returns the scalar loss value for the step as a Python float.
+    """
+    zero_all_parameter_gradients(parameter_list)
 
-    # 3. Build label-smoothed target distribution against the UNSHIFTED gold tokens
-    confidence = 1.0 - smoothing
-    smoothed_dist = build_uniform_smoothing_distribution(log_probas.shape, vocab_size, smoothing)
-    smoothed_dist = set_confidence_on_gold_tokens(smoothed_dist, tgt_batch, confidence)
-    smoothed_dist = zero_pad_column_and_pad_token_rows(smoothed_dist, tgt_batch, pad_id)
+    loss = compute_batch_training_loss(src_batch, tgt_batch, model_params, config)
 
-    # 4. KL loss, reduced (averaged) over non-pad tokens only
-    total_loss = compute_label_smoothed_kl_loss(log_probas, smoothed_dist)
-    average_loss = average_loss_over_non_pad_tokens(total_loss, tgt_batch, pad_id)
+    loss.backward()
 
-    return average_loss
+    d_model = config['d_model']
+    warmup_steps = config['warmup_steps']
+    lr = compute_noam_learning_rate(step_number, d_model, warmup_steps)
+
+    adam_kwargs = {}
+    if 'beta1' in config:
+        adam_kwargs['beta1'] = config['beta1']
+    if 'beta2' in config:
+        adam_kwargs['beta2'] = config['beta2']
+    if 'epsilon' in config:
+        adam_kwargs['epsilon'] = config['epsilon']
+
+    apply_adam_step_to_all_parameters(parameter_list, optimizer_state, lr, **adam_kwargs)
+
+    return float(loss.item())
 
 # Step 73 - run_training_loop_for_steps (not yet solved)
 # TODO: implement
